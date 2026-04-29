@@ -855,42 +855,7 @@
     <!-- ============ 5. 최종 결과물 ============ -->
     <section id="section-5" class="card">
       <h2>05 최종 결과물</h2>
-
-      <div class="tabs" role="tablist" aria-label="결과물 유형">
-        <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-text" id="tab-text" tabindex="0">텍스트 / Text</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-image" id="tab-image" tabindex="-1">이미지 / Image</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-video" id="tab-video" tabindex="-1">영상 / Video</button>
-      </div>
-
-      <!-- Tab 1: Text (with sub-tabs) -->
-      <div class="tab-panel active" id="panel-text" role="tabpanel" aria-labelledby="tab-text">
-        <div id="text-results-container"></div>
-      </div>
-
-      <!-- Tab 2: Image -->
-      <div class="tab-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image" hidden>
-        <div class="edit-only edit-only-block" style="margin-bottom:16px">
-          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">이미지 URL</label>
-          <input type="text" class="edit-input" id="image-url-input" placeholder="이미지 URL을 입력하세요" oninput="updateImagePreview()">
-        </div>
-        <div id="image-display"></div>
-        <div class="edit-only edit-only-block" style="margin-top:8px">
-          <input type="text" class="edit-input" id="image-caption-input" placeholder="이미지 설명 (figcaption)" oninput="scheduleSave()">
-        </div>
-      </div>
-
-      <!-- Tab 3: Video -->
-      <div class="tab-panel" id="panel-video" role="tabpanel" aria-labelledby="tab-video" hidden>
-        <div class="edit-only edit-only-block" style="margin-bottom:16px">
-          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">YouTube URL</label>
-          <input type="text" class="edit-input" id="video-url-input" placeholder="https://www.youtube.com/watch?v=..." oninput="updateVideoPreview()">
-        </div>
-        <div id="video-display"></div>
-        <div class="edit-only edit-only-block" style="margin-top:8px">
-          <textarea class="edit-input" id="video-desc-input" placeholder="영상 설명" rows="2" oninput="scheduleSave()"></textarea>
-        </div>
-        <p id="video-desc-text" style="margin-top:12px;font-size:13px;color:var(--text-muted);"></p>
-      </div>
+      <div id="text-results-container"></div>
     </section>
 
     <!-- ============ 6. 현장 시연 ============ -->
@@ -1354,10 +1319,6 @@ const DEFAULTS = {
     { label: '결과 B', content: RESULT_B },
     { label: '결과 C', content: RESULT_C }
   ],
-  imageUrl: '',
-  imageCaption: '',
-  videoUrl: '',
-  videoDesc: '',
   liveDemoUrl: 'https://test.the-prompt.me',
   liveDemoDesc: '시연 방법: QR 코드를 통해 관객이 직접 7가지 입력값(제목·장르·배경·주인공·도발적 사건·핵심 갈등·주제·타깃 관객)을 제시하고, 그 자리에서 시놉시스가 생성되는 과정을 함께 본다. 관객 참여: 발표 마지막 10분간 즉석에서 관객이 던진 키워드 3개로 한 편의 시놉시스를 완성한다.'
 };
@@ -1373,13 +1334,6 @@ function esc(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
-}
-
-function toEmbedUrl(url) {
-  if (!url) return '';
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/);
-  if (m) return 'https://www.youtube.com/embed/' + m[1];
-  return url;
 }
 
 /* =========================================================
@@ -1481,21 +1435,8 @@ function buildExportHTML(d, css) {
           <div class="version-change">${esc(r.change)}</div>
         </div>
         ${body}
-        <h4>해당 버전 결과물</h4>
-        <div class="code-block">
-          <button class="copy-btn" data-copy-target="${v}-output">복사</button>
-          <pre id="${v}-output">${esc(r.output)}</pre>
-        </div>
       </article>`;
   }).join('');
-
-  const imagePanel = d.imageUrl
-    ? `<figure><img src="${esc(d.imageUrl)}" alt="결과 이미지" />${d.imageCaption ? `<figcaption>${esc(d.imageCaption)}</figcaption>` : ''}</figure>`
-    : `<div class="placeholder">이미지가 없습니다</div>`;
-
-  const videoPanel = d.videoUrl
-    ? `<div class="video-wrap"><iframe src="${esc(toEmbedUrl(d.videoUrl))}" title="영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>${d.videoDesc ? `<p style="margin-top:12px;font-size:13px;color:var(--text-muted)">${esc(d.videoDesc)}</p>` : ''}`
-    : `<div class="placeholder">영상이 없습니다</div>`;
 
   const textResults = d.textResults && d.textResults.length ? d.textResults : [];
   const subTabsHTML = textResults.length
@@ -1610,16 +1551,7 @@ function buildExportHTML(d, css) {
 
     <section id="section-5" class="card">
       <h2>05 최종 결과물</h2>
-      <div class="tabs" role="tablist" aria-label="결과물 유형">
-        <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-text" id="tab-text" tabindex="0">텍스트 / Text</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-image" id="tab-image" tabindex="-1">이미지 / Image</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-video" id="tab-video" tabindex="-1">영상 / Video</button>
-      </div>
-      <div class="tab-panel active" id="panel-text" role="tabpanel" aria-labelledby="tab-text">
-        ${subTabsHTML}
-      </div>
-      <div class="tab-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image" hidden>${imagePanel}</div>
-      <div class="tab-panel" id="panel-video" role="tabpanel" aria-labelledby="tab-video" hidden>${videoPanel}</div>
+      ${subTabsHTML}
     </section>
     ${demoSection}
   </main>
@@ -1692,38 +1624,6 @@ const PRESENTATION_JS = `
       const idx = parseInt(tab.dataset.subTab);
       document.querySelectorAll('.sub-tab[data-sub-tab]').forEach((t, i) => t.classList.toggle('active', parseInt(t.dataset.subTab) === idx));
       document.querySelectorAll('.sub-tab-panel').forEach(p => p.classList.toggle('active', parseInt(p.dataset.subPanel) === idx));
-    });
-  });
-})();
-
-(function(){
-  const tabs = document.querySelectorAll('.tab');
-  const panels = document.querySelectorAll('.tab-panel');
-  function activate(tab) {
-    tabs.forEach(t => {
-      const is = t === tab;
-      t.classList.toggle('active', is);
-      t.setAttribute('aria-selected', is);
-      t.setAttribute('tabindex', is ? '0' : '-1');
-    });
-    const panelId = tab.getAttribute('aria-controls');
-    panels.forEach(p => {
-      const show = p.id === panelId;
-      p.classList.toggle('active', show);
-      p.hidden = !show;
-    });
-  }
-  tabs.forEach((tab, idx) => {
-    tab.addEventListener('click', () => activate(tab));
-    tab.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(tab); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const dir = e.key === 'ArrowRight' ? 1 : -1;
-        const next = tabs[(idx + dir + tabs.length) % tabs.length];
-        next.focus();
-        activate(next);
-      }
     });
   });
 })();
@@ -1804,15 +1704,6 @@ function collectData() {
   });
   if (collectedResults.length) data.textResults = collectedResults.filter(Boolean);
 
-  const imgInput = document.getElementById('image-url-input');
-  const capInput = document.getElementById('image-caption-input');
-  const vidInput = document.getElementById('video-url-input');
-  const vidDesc = document.getElementById('video-desc-input');
-  if (imgInput) data.imageUrl = imgInput.value;
-  if (capInput) data.imageCaption = capInput.value;
-  if (vidInput) data.videoUrl = vidInput.value;
-  if (vidDesc) data.videoDesc = vidDesc.value;
-
   // Live demo
   const liveUrlInput = document.getElementById('live-demo-url-input');
   if (liveUrlInput) data.liveDemoUrl = liveUrlInput.value;
@@ -1828,7 +1719,6 @@ function renderAll() {
   renderFeatures();
   renderRevisions();
   renderTextResults();
-  renderFinalOutput();
   renderLiveDemo();
 }
 
@@ -1926,32 +1816,11 @@ function renderRevisions() {
           <pre id="${vLabel}-prompt" class="editable" data-rev="prompt" data-placeholder="프롬프트를 입력하세요" spellcheck="false">${esc(r.prompt)}</pre>
         </div>
         `}
-
-        <h4>해당 버전 결과물</h4>
-        <div class="code-block">
-          <button class="copy-btn" onclick="copyText('${vLabel}-output')">복사</button>
-          <pre id="${vLabel}-output" class="editable" data-rev="output" data-placeholder="결과물을 입력하세요" spellcheck="false">${esc(r.output)}</pre>
-        </div>
       </article>
     `;
   }).join('');
 
   initDiffToggles();
-}
-
-function renderFinalOutput() {
-  const imgInput = document.getElementById('image-url-input');
-  const capInput = document.getElementById('image-caption-input');
-  const vidInput = document.getElementById('video-url-input');
-  const vidDescInput = document.getElementById('video-desc-input');
-
-  if (imgInput) imgInput.value = data.imageUrl || '';
-  if (capInput) capInput.value = data.imageCaption || '';
-  if (vidInput) vidInput.value = data.videoUrl || '';
-  if (vidDescInput) vidDescInput.value = data.videoDesc || '';
-
-  updateImagePreview();
-  updateVideoPreview();
 }
 
 function renderTextResults() {
@@ -2077,49 +1946,6 @@ function removeTextResult(idx) {
   scheduleSave();
 }
 
-function updateImagePreview() {
-  const input = document.getElementById('image-url-input');
-  const display = document.getElementById('image-display');
-  const url = input ? input.value.trim() : (data.imageUrl || '');
-
-  if (url) {
-    const caption = document.getElementById('image-caption-input');
-    const capText = caption ? caption.value : (data.imageCaption || '');
-    display.innerHTML = `
-      <figure>
-        <img src="${esc(url)}" alt="결과 이미지" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>이미지를 불러올 수 없습니다</div>'" />
-        ${capText ? `<figcaption>${esc(capText)}</figcaption>` : ''}
-      </figure>
-    `;
-  } else {
-    display.innerHTML = '<div class="placeholder">이미지 URL을 입력하면 여기에 표시됩니다</div>';
-  }
-  scheduleSave();
-}
-
-function updateVideoPreview() {
-  const input = document.getElementById('video-url-input');
-  const display = document.getElementById('video-display');
-  const descInput = document.getElementById('video-desc-input');
-  const descText = document.getElementById('video-desc-text');
-  const url = input ? input.value.trim() : (data.videoUrl || '');
-  const desc = descInput ? descInput.value : (data.videoDesc || '');
-
-  if (url) {
-    const embedUrl = toEmbedUrl(url);
-    display.innerHTML = `
-      <div class="video-wrap">
-        <iframe src="${esc(embedUrl)}" title="영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-      </div>
-    `;
-  } else {
-    display.innerHTML = '<div class="placeholder">YouTube URL을 입력하면 여기에 표시됩니다</div>';
-  }
-
-  if (descText) descText.textContent = desc;
-  scheduleSave();
-}
-
 /* =========================================================
    Add / Remove Handlers
 ========================================================= */
@@ -2218,43 +2044,6 @@ function copyText(preId) {
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
   }
-}
-
-/* =========================================================
-   Tab UI
-========================================================= */
-function initTabs() {
-  const tabs = document.querySelectorAll('.tab');
-  const panels = document.querySelectorAll('.tab-panel');
-
-  function activate(tab) {
-    tabs.forEach(t => {
-      const is = t === tab;
-      t.classList.toggle('active', is);
-      t.setAttribute('aria-selected', is);
-      t.setAttribute('tabindex', is ? '0' : '-1');
-    });
-    const panelId = tab.getAttribute('aria-controls');
-    panels.forEach(p => {
-      const show = p.id === panelId;
-      p.classList.toggle('active', show);
-      p.hidden = !show;
-    });
-  }
-
-  tabs.forEach((tab, idx) => {
-    tab.addEventListener('click', () => activate(tab));
-    tab.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(tab); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const dir = e.key === 'ArrowRight' ? 1 : -1;
-        const next = tabs[(idx + dir + tabs.length) % tabs.length];
-        next.focus();
-        activate(next);
-      }
-    });
-  });
 }
 
 /* =========================================================
@@ -2381,7 +2170,6 @@ function initEventListeners() {
   renderAll();
   initTheme();
   initNav();
-  initTabs();
   initEventListeners();
 })();
 </script>
