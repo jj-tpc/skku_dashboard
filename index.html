@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>발표용 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #FAFAF5;
+    --surface: #FFFFFF;
+    --surface-alt: #F3F3EA;
+    --text: #2C2C2C;
+    --text-muted: #6B6B65;
+    --primary: #5A8F3D;
+    --primary-dim: #4A7A32;
+    --accent: #F5D547;
+    --accent-dim: #D9BC2E;
+    --border: #E5E5DC;
+    --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-hover: 0 4px 16px rgba(0,0,0,0.10);
+    --diff-add: rgba(90,143,61,0.2);
+    --diff-remove: rgba(200,60,60,0.2);
+    --code-bg: #F7F7F0;
+    --code-text: #2C2C2C;
+    --radius: 10px;
+  }
+  [data-theme="dark"] {
+    --bg: #1A1F17;
+    --surface: #242A20;
+    --surface-alt: #2E342A;
+    --text: #E8E8E0;
+    --text-muted: #A0A098;
+    --primary: #7FB05C;
+    --primary-dim: #6A9A48;
+    --accent: #D9BC2E;
+    --accent-dim: #B89E24;
+    --border: #3A4034;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-hover: 0 4px 16px rgba(0,0,0,0.4);
+    --diff-add: rgba(127,176,92,0.25);
+    --diff-remove: rgba(220,90,90,0.25);
+    --code-bg: #1F2419;
+    --code-text: #E8E8E0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', 'Pretendard', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  a { color: var(--primary); }
+
+  /* ===== Theme toggle ===== */
+  .theme-toggle, .edit-toggle {
+    position: fixed;
+    top: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    color: var(--text);
+  }
+  .theme-toggle { right: 24px; }
+  .edit-toggle { right: 76px; }
+  .theme-toggle:hover, .edit-toggle:hover { transform: scale(1.08); box-shadow: var(--shadow-hover); }
+  .theme-toggle svg, .edit-toggle svg { width: 20px; height: 20px; }
+  .theme-toggle .icon-moon { display: none; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+
+  .edit-toggle .icon-present { display: none; }
+  body.editing .edit-toggle .icon-edit { display: none; }
+  body.editing .edit-toggle .icon-present { display: block; }
+  body.editing .edit-toggle {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+
+  /* ===== Edit mode banner ===== */
+  .edit-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--primary);
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 999;
+    letter-spacing: 0.03em;
+  }
+  body.editing .edit-banner { display: flex; }
+  body.editing .theme-toggle,
+  body.editing .edit-toggle { top: 52px; }
+  body.editing .sidenav { top: 40px; height: calc(100vh - 40px); }
+  .edit-banner button {
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.4);
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .edit-banner button:hover { background: rgba(255,255,255,0.15); }
+
+  /* ===== Save indicator ===== */
+  .save-indicator {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 8px 16px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 1001;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+  }
+  .save-indicator.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ===== Editable elements ===== */
+  .editable {
+    transition: outline 0.15s ease, background 0.15s ease;
+    border-radius: 4px;
+  }
+  body.editing .editable {
+    outline: 1px dashed var(--border);
+    outline-offset: 3px;
+    cursor: text;
+    min-height: 1em;
+  }
+  body.editing .editable:hover {
+    outline-color: var(--text-muted);
+  }
+  body.editing .editable:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    background: rgba(90,143,61,0.04);
+  }
+  [data-theme="dark"] body.editing .editable:focus {
+    background: rgba(127,176,92,0.08);
+  }
+  body.editing .editable[data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  /* ===== Edit-only elements ===== */
+  .edit-only { display: none !important; }
+  body.editing .edit-only { display: inline-flex !important; }
+  body.editing td.edit-only,
+  body.editing th.edit-only { display: table-cell !important; }
+  body.editing .edit-only-block { display: block !important; }
+
+  .add-btn {
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: var(--surface-alt);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: inherit;
+    transition: all 0.2s ease;
+  }
+  .add-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  .remove-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+  .remove-btn:hover { background: var(--diff-remove); color: var(--text); border-color: var(--border); }
+
+  .edit-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s ease;
+  }
+  .edit-input:focus { outline: none; border-color: var(--primary); }
+  .edit-input::placeholder { color: var(--text-muted); }
+  textarea.edit-input { resize: vertical; min-height: 40px; }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ===== Sticky side nav ===== */
+  .sidenav {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 40px 20px 40px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    transition: top 0.2s ease, height 0.2s ease;
+  }
+  .sidenav .brand {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.1em;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .sidenav a {
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    border-radius: 0 6px 6px 0;
+    transition: all 0.2s ease;
+  }
+  .sidenav a:hover { color: var(--text); background: var(--surface-alt); }
+  .sidenav a.active {
+    color: var(--text);
+    font-weight: 700;
+    border-left-color: var(--accent);
+    background: var(--surface-alt);
+  }
+
+  /* ===== Main ===== */
+  main { padding: 48px 48px 96px; max-width: 100%; }
+  header.page-header { margin-bottom: 40px; }
+  header.page-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  header.page-header .subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  /* ===== Cards / Sections ===== */
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  section.card:hover { box-shadow: var(--shadow-hover); }
+  section.card h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.card h2::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 20px;
+    background: var(--primary);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  section.card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 20px 0 10px;
+    color: var(--text);
+  }
+
+  /* ===== Team table ===== */
+  table.team { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table.team th, table.team td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  table.team th {
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-alt);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table.team tr:last-child td { border-bottom: none; }
+  table.team tr:hover td { background: var(--surface-alt); }
+
+  /* ===== Code block ===== */
+  .code-block {
+    position: relative;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 16px 18px;
+    padding-right: 80px;
+    border-radius: 8px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  .code-block pre {
+    margin: 0;
+    font-family: inherit;
+    white-space: pre-wrap;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.2s ease, background 0.2s ease;
+    font-family: inherit;
+    z-index: 2;
+  }
+  .code-block:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { background: var(--accent); color: #2C2C2C; }
+  .copy-btn.copied { background: var(--primary); color: #fff; opacity: 1; }
+
+  /* ===== Rationale panel ===== */
+  .rationale {
+    background: rgba(90,143,61,0.08);
+    border-left: 3px solid var(--primary);
+    padding: 16px 18px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 8px;
+  }
+  [data-theme="dark"] .rationale { background: rgba(127,176,92,0.12); }
+  .rationale ul { list-style: none; padding: 0; }
+  .rationale li {
+    position: relative;
+    padding-left: 18px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .rationale li::before {
+    content: '\25B8';
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .rationale li .feature-text { flex: 1; }
+  .rationale li:last-child { margin-bottom: 0; }
+
+  /* ===== Revision log ===== */
+  .revision-list { display: flex; flex-direction: column; gap: 20px; }
+  .revision {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--surface-alt);
+    position: relative;
+  }
+  .revision-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .version-badge {
+    background: var(--primary);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+  }
+  .version-change {
+    font-size: 14px;
+    color: var(--text);
+    flex: 1;
+    min-width: 200px;
+  }
+  .revision h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 16px 0 8px;
+  }
+  .diff-toggle-group {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+    margin-bottom: 8px;
+  }
+  .diff-toggle-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .diff-toggle-btn.active {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+  }
+  .diff-content { display: none; }
+  .diff-content.active { display: block; }
+  .diff-add {
+    background: var(--diff-add);
+    padding: 1px 2px;
+    border-radius: 2px;
+  }
+  .diff-remove {
+    background: var(--diff-remove);
+    text-decoration: line-through;
+    padding: 1px 2px;
+    border-radius: 2px;
+  }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    outline: none;
+  }
+  .tab:hover { color: var(--text); border-bottom-color: var(--accent); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .tab.active {
+    color: var(--primary);
+    font-weight: 700;
+    border-bottom-color: var(--primary);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== Sub-tabs (nested in 텍스트 result) ===== */
+  .sub-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 16px;
+  }
+  .sub-tab {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sub-tab:hover { color: var(--text); }
+  .sub-tab.active {
+    background: var(--surface);
+    color: var(--primary);
+    font-weight: 600;
+    box-shadow: var(--shadow);
+  }
+  .sub-tab-add {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    margin-left: 4px;
+  }
+  .sub-tab-add:hover { border-color: var(--primary); color: var(--primary); }
+  .sub-tab-panel { display: none; }
+  .sub-tab-panel.active { display: block; }
+  .sub-tab-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sub-tab-meta input { flex: 1; max-width: 240px; }
+
+  /* ===== Live demo card ===== */
+  .demo-card {
+    background: linear-gradient(135deg, rgba(90,143,61,0.08), rgba(245,213,71,0.12));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  [data-theme="dark"] .demo-card {
+    background: linear-gradient(135deg, rgba(127,176,92,0.15), rgba(217,188,46,0.12));
+  }
+  .demo-url-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .demo-url-pill {
+    flex: 1;
+    min-width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 8px 8px 16px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .demo-url-pill > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .demo-url-pill button {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    font-size: 11px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .demo-url-pill button:hover { background: var(--accent); color: #2C2C2C; border-color: var(--accent); }
+  .demo-url-pill button.copied { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .demo-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    background: var(--primary);
+    color: #fff !important;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.1s ease;
+    flex-shrink: 0;
+  }
+  .demo-cta:hover { background: var(--primary-dim); }
+  .demo-cta:active { transform: scale(0.97); }
+  .demo-cta svg { width: 14px; height: 14px; }
+  .demo-description {
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .demo-iframe-wrap {
+    width: 100%;
+    height: 480px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .demo-iframe-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+  }
+  .demo-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+    gap: 8px;
+  }
+
+  /* ===== Figure / Video ===== */
+  figure {
+    margin: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+  }
+  figure img { width: 100%; display: block; }
+  figcaption {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .video-wrap iframe, .video-wrap video {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  .placeholder {
+    background: var(--surface-alt);
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  /* ===== Mobile ===== */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidenav {
+      position: sticky;
+      top: 0;
+      height: auto;
+      flex-direction: row;
+      overflow-x: auto;
+      padding: 12px 16px;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+      gap: 4px;
+    }
+    body.editing .sidenav { top: 40px; }
+    .sidenav .brand { display: none; }
+    .sidenav a {
+      border-left: none;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+      padding: 8px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .sidenav a.active {
+      border-left-color: transparent;
+      border-bottom-color: var(--accent);
+      background: transparent;
+    }
+    main { padding: 24px 20px 80px; }
+    header.page-header h1 { font-size: 24px; }
+    section.card { padding: 20px; }
+    .theme-toggle, .edit-toggle { width: 36px; height: 36px; }
+    .theme-toggle svg, .edit-toggle svg { width: 16px; height: 16px; }
+    .theme-toggle { top: 12px; right: 12px; }
+    .edit-toggle { top: 12px; right: 56px; }
+    body.editing .theme-toggle { top: 52px; right: 12px; }
+    body.editing .edit-toggle { top: 52px; right: 56px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Edit mode banner -->
+<div class="edit-banner">
+  <span>편집 모드</span>
+  <button onclick="exportHTML()">HTML 내보내기</button>
+  <button onclick="resetData()">초기화</button>
+</div>
+
+<!-- Save indicator -->
+<div class="save-indicator" id="saveIndicator">자동 저장됨</div>
+
+<!-- Theme toggle -->
+<button class="theme-toggle" id="themeToggle" aria-label="다크 모드 전환">
+  <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<!-- Edit mode toggle -->
+<button class="edit-toggle" id="editToggle" aria-label="편집 모드 전환">
+  <svg class="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+  <svg class="icon-present" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+
+<div class="layout">
+
+  <!-- Side navigation -->
+  <nav class="sidenav" aria-label="섹션 탐색">
+    <div class="brand">Portfolio</div>
+    <a href="#section-1" class="nav-link active">01 제작물</a>
+    <a href="#section-2" class="nav-link">02 팀원</a>
+    <a href="#section-3" class="nav-link">03 프롬프트</a>
+    <a href="#section-4" class="nav-link">04 수정 로그</a>
+    <a href="#section-5" class="nav-link">05 결과물</a>
+    <a href="#section-6" class="nav-link">06 현장 시연</a>
+  </nav>
+
+  <main>
+    <header class="page-header">
+      <h1><span class="editable" data-field="pageTitle" data-placeholder="제목을 입력하세요"></span></h1>
+      <p class="subtitle"><span class="editable" data-field="pageSubtitle" data-placeholder="팀명 · 수업명"></span></p>
+    </header>
+
+    <!-- ============ 1. 제작물 ============ -->
+    <section id="section-1" class="card">
+      <h2>01 제작물</h2>
+      <article id="section1-content"></article>
+    </section>
+
+    <!-- ============ 2. 팀원 ============ -->
+    <section id="section-2" class="card">
+      <h2>02 팀원</h2>
+      <table class="team">
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>역할</th>
+            <th class="edit-only" style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody id="team-body"></tbody>
+      </table>
+      <button class="add-btn edit-only" onclick="addMember()">+ 팀원 추가</button>
+    </section>
+
+    <!-- ============ 3. 프롬프트 최종본 & 특징 ============ -->
+    <section id="section-3" class="card">
+      <h2>03 프롬프트 최종본 &amp; 특징</h2>
+
+      <h3>3-1. 최종 프롬프트</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyText('final-prompt-pre')">복사</button>
+        <pre id="final-prompt-pre" class="editable" data-field="finalPrompt" data-placeholder="최종 프롬프트를 입력하세요" spellcheck="false"></pre>
+      </div>
+
+      <h3>3-2. 프롬프트 특징 설명</h3>
+      <div class="rationale">
+        <ul id="features-list"></ul>
+      </div>
+      <button class="add-btn edit-only" onclick="addFeature()">+ 특징 추가</button>
+    </section>
+
+    <!-- ============ 4. 수정 로그 ============ -->
+    <section id="section-4" class="card">
+      <h2>04 프롬프트 수정 로그</h2>
+      <div class="revision-list" id="revision-list"></div>
+      <button class="add-btn edit-only" onclick="addRevision()">+ 버전 추가</button>
+    </section>
+
+    <!-- ============ 5. 최종 결과물 ============ -->
+    <section id="section-5" class="card">
+      <h2>05 최종 결과물</h2>
+
+      <div class="tabs" role="tablist" aria-label="결과물 유형">
+        <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-text" id="tab-text" tabindex="0">텍스트 / Text</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-image" id="tab-image" tabindex="-1">이미지 / Image</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-video" id="tab-video" tabindex="-1">영상 / Video</button>
+      </div>
+
+      <!-- Tab 1: Text (with sub-tabs) -->
+      <div class="tab-panel active" id="panel-text" role="tabpanel" aria-labelledby="tab-text">
+        <div id="text-results-container"></div>
+      </div>
+
+      <!-- Tab 2: Image -->
+      <div class="tab-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image" hidden>
+        <div class="edit-only edit-only-block" style="margin-bottom:16px">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">이미지 URL</label>
+          <input type="text" class="edit-input" id="image-url-input" placeholder="이미지 URL을 입력하세요" oninput="updateImagePreview()">
+        </div>
+        <div id="image-display"></div>
+        <div class="edit-only edit-only-block" style="margin-top:8px">
+          <input type="text" class="edit-input" id="image-caption-input" placeholder="이미지 설명 (figcaption)" oninput="scheduleSave()">
+        </div>
+      </div>
+
+      <!-- Tab 3: Video -->
+      <div class="tab-panel" id="panel-video" role="tabpanel" aria-labelledby="tab-video" hidden>
+        <div class="edit-only edit-only-block" style="margin-bottom:16px">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">YouTube URL</label>
+          <input type="text" class="edit-input" id="video-url-input" placeholder="https://www.youtube.com/watch?v=..." oninput="updateVideoPreview()">
+        </div>
+        <div id="video-display"></div>
+        <div class="edit-only edit-only-block" style="margin-top:8px">
+          <textarea class="edit-input" id="video-desc-input" placeholder="영상 설명" rows="2" oninput="scheduleSave()"></textarea>
+        </div>
+        <p id="video-desc-text" style="margin-top:12px;font-size:13px;color:var(--text-muted);"></p>
+      </div>
+    </section>
+
+    <!-- ============ 6. 현장 시연 ============ -->
+    <section id="section-6" class="card">
+      <h2>06 현장 시연</h2>
+      <div class="demo-card">
+        <div class="edit-only edit-only-block" style="margin-bottom:12px">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">시연 페이지 URL</label>
+          <input type="text" class="edit-input" id="live-demo-url-input" placeholder="https://example.com" oninput="updateLiveDemo()">
+        </div>
+        <div class="demo-url-row">
+          <div class="demo-url-pill">
+            <span id="demo-url-display">(URL 미설정)</span>
+            <button id="demo-url-copy-btn" onclick="copyDemoUrl()">URL 복사</button>
+          </div>
+          <a id="demo-cta" class="demo-cta" href="#" target="_blank" rel="noopener">
+            <span>시연 페이지 열기</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="demo-description editable" data-field="liveDemoDesc" data-placeholder="시연 방법 / 관객 참여 안내를 입력하세요"></div>
+        <div class="demo-iframe-wrap" id="demo-iframe-wrap">
+          <div class="demo-fallback">URL을 입력하면 시연 페이지가 여기에 표시됩니다.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   Constants & Default Data
+========================================================= */
+const STORAGE_KEY = 'dashboard-data';
+
+const V1_PROMPT = `<role>
+당신은 Academy Awards, Cannes Film Festival, Venice Film Festival 등 세계적인 영화제에서 인정받는, 대중성과 작품성을 겸비한 뛰어난 시나리오 작가이다.
+</role>
+
+<고정변수>
+###구조
+다음의 흐름을 따르되, 각 요소가 끊기지 않도록 하나의 자연스러운 글로 연결해 서술한다.
+
+**로그라인**: 독자의 관심을 끌어야하는 구간. 1~2문장으로 영화의 핵심 갈등과 주인공의 목표를 압축해 제시한다. 읽는 이의 관심과 궁금증을 유발 할 수 있도록, 질문이나 강한 훅을 활용하여 서술한다.
+
+**1막**: 이야기의 배경과 세계관을 제시하고, 주인공의 성격과 상황, 과거를 자연스럽게 소개한다. 주인공이 어떤 사람인지, 그리고 어떠한 배경에 놓여 있는지를 통해 이후 사건의 기반을 만든다.
+
+**2막**: 어느 날 또는 특정한 계기를 통해 주인공은 중요한 사건에 직면한다. 이 사건은 이야기의 핵심 갈등을 형성하고 흥미를 유발한다. 주인공은 사건/문제를 해결하려 하지만 상황은 점점 복잡해지고 갈등은 더욱 심화된다. 이 과정에서 긴장감과 몰입도를 높이는 전개가 이루어진다.
+
+**3막**: RESOLVING/결말. 주인공은 문제를 해결하기 위해 노력하지만, 그 과정은 결코 쉽지 않다. 상황은 더욱 악화되기도 한다. 이 과정 속에서 주인공은 중요한 깨달음을 얻고 성장하며, 결국 하나의 결정을 내리게 된다. 이 선택을 통해 이야기는 마무리 된다.
+
+**중요 요소**
+이야기에는 반드시 주인공의 성장과 깨달음, 즉 전달하고자 하는 주제나 메시지가 포함되어야한다.
+
+**캐릭터 법칙**: 캐릭터는 과거의 결핍과 현재의 욕망을 가지고 있다. 자신이 이루고자 하는 목적(욕망)을 향해 달려 나가며 갈등을 겪지만 결국 결핍을 극복하고 변화한다. 캐릭터의 결핍과 욕망은 관객이 납득할 수 있어야 한다.
+
+**갈등의 양상**: 캐릭터는 내면적(ex. 가족사, 도덕성), 외면적(ex. 적대자와의 대립), 사회적(ex. 시대상, 구조)인 갈등을 겪는다. 갈등에 따라 주요 설정이나 상대 인물이 달라질 수 있다. 이야기 안에 이 중 최소 한 가지 이상의 갈등이 존재해야 한다.
+
+**주제 의식**: 작품의 주제는 이야기를 통해 관객에게 전달하고자 하는 메시지나 핵심 질문. 시의성이 있어야 하며 작품 전체를 관통해야 한다.
+
+**감정적 공감**: 관객이 이야기에 몰입하여 인물의 감정에 동화될 수 있어야 한다. 인물이 상황에 따라 느끼는 기쁨, 슬픔, 분노 등의 감정이 자연스럽게 관객에게도 이어져야 한다.
+
+**차별성**: 지금까지 없었던 이야기를 통해 새로운 경쟁력을 창출한다. 익숙한 소재이더라도 새로운 시각에서 바라볼 수 있어야 한다. 이미 제작된 영화나 드라마와 소재나 이야기 진행 방향이 지나치게 겹치지 않는지 확인해야 한다.
+</고정변수>
+
+**장르** : 메인 장르와 서브 장르를 구분하여 입력합니다. (예: SF/스릴러, 로맨틱 코미디) 장르에 따라 고유의 문법과 작품의 분위기와 전개 방향이 달라집니다.
+
+**배경**: 시간적 배경(과거, 현재, 미래)과 공간적 배경(특정 도시, 마을 및 기타 장소)을 상세히 설정하여 등장인물들이 사건을 겪는 장소와 상황 그리고 전체 이야기 맥락을 구성합니다.
+
+**주인공 설정**: 이름, 직업, 나이 뿐만 아니라 주인공이 가진 트라우마와 숨겨진 욕망을 포함하여 캐릭터의 입체감을 더합니다.
+
+**톤/분위기**: 시각적 스타일/전개 속도/정서적 온도를 명시.
+
+**내적 갈등** / **외적 갈등** / **핵심 사건** / **타깃 관객** : 각 항목을 입력값으로 받는다.
+
+## 출력 지시문 :
+### 문체
+- 현재형으로 서술한다.
+- 피칭 문서처럼 쓴다. [로그라인]과 [절정]에는 느낌표(!)나 짧은 의문문(?)으로 긴장감 강조 가능.
+- 추상·관념 어휘를 피하고, 시각적 언어로 작성한다.
+
+### 구조
+- 출력 형식의 레이블 순서를 변경하지 않는다.
+- [등장인물]: 주인공 외 인물은 사건 구조에 직접 기능할 때만 추가.
+- [로그라인]: 제시된 문장 템플릿 구조를 유지.
+
+### 금지 패턴
+- 레이블 없이 본문만 출력하는 것
+- [절정]에서 결말을 직접 노출하는 것
+- "이 시놉시스는 ~를 다룹니다" 형태의 메타 발화
+- "A하고, B하며, C하고, D한다" 형태의 나열식 연속 문장
+
+## 출력 형식 :
+[제목] / [장르] / [배경] / [등장인물] / [로그라인] / [시놉시스: 발단·전개·절정·결말] / [주제의식]`;
+
+const V2_PROMPT = `#역할
+당신은 Academy Awards, Cannes Film Festival, Venice Film Festival 등 세계적인 영화제에서 인정받는, 대중성과 작품성을 겸비한 뛰어난 시나리오 작가이다.
+
+—
+#고정변수
+##구조
+다음의 흐름을 따르되, 각 요소가 끊기지 않도록 하나의 자연스러운 글로 연결해 서술한다.
+1. **로그라인** 독자의 관심을 끌어야하는 구간.
+2. **1막** 이야기의 배경과 세계관을 제시.
+3. **2막** 주인공이 사건에 직면, 갈등 심화.
+4. **3막** RESOLVING/결말. 깨달음을 얻고 성장한다.
+
+## 중요 요소
+- 이야기에는 반드시 주인공의 성장과 깨달음이 포함되어야 한다.
+
+## 이야기의 유기성
+- 발단, 전개 및 갈등, 위기, 절정, 결말의 5단 구성을 따르되, 각 단계의 사건은 유기적으로 연결되어야 한다. 인과관계와 개연성이 있어야 한다.
+
+## 캐릭터 법칙
+- 캐릭터는 과거의 결핍과 현재의 욕망을 가지고 있다. 결핍을 극복하고 변화하는 모습을 그린다.
+
+## 갈등의 양상
+- 내면적/외면적/사회적 갈등 중 최소 한 가지 이상이 존재해야 한다.
+
+## 주제 의식 / ## 감정적 공감 / ## 차별성
+
+## 장르 / ## 배경 / ##톤/분위기 / ##핵심 사건 / ##타깃 관객
+
+##클리셰 회피 원칙
+- "모든 게 꿈이었다" 결말 금지
+- 기억상실만으로 해결하는 전개 금지
+- 악당의 과도한 설명 독백 지양
+- 타이밍이 지나치게 완벽한 우연 회피
+- 1차원적 악당(악을 위한 악) 지양
+
+—
+# 출력 지시문
+## 문체
+- 현재형으로 서술한다. ("~한다" / "~이다")
+- 피칭 문서처럼 쓴다. 특히 [로그라인]과 [절정]에는 느낌표/의문문으로 긴장감 강조.
+- 추상·관념 어휘를 피하고, 시각적 언어로 작성.
+- "~~하고 ~~해서 ~~하는 {주어}" 방식으로 작성 금지
+
+## 구조 / ## 금지 패턴 (v1과 동일)
+
+##자가검증 (출력 전 필수)
+다음 모든 항목에 "예"라고 답할 수 있어야 출력한다:
+- 주인공이 명확한 변화를 겪었는가?
+- 갈등이 구체적이고 납득 가능한가?
+- 시각적 이미지가 즉각 떠오르는 표현을 사용했는가?
+- 결말이 필연적이면서도 예측 불가능한가?
+- 이 영화만의 고유한 질문/차별점이 있는가?
+- 클리셰 회피 원칙을 모두 준수했는가?
+- 각 섹션의 문장 수가 페이싱 조절 원칙을 따르는가?
+- 사건과 사건 사이의 인과관계가 뚜렷한가?
+
+**하나라도 "아니오"가 있다면 해당 부분을 수정한 후 출력한다.**
+
+## 출력 형식
+[제목 / 장르 / 배경] / [핵심 등장인물] / [로그라인] / [시놉시스 — 800-1500자, 발단·전개 및 갈등·절정·결말 각 300~350자]
+
+## 장르별 필수 충족 조건 / ## 장르 판별 및 점검용 핵심 질문
+(스릴러·공포·액션·로맨스/멜로·SF·판타지·범죄·누아르 등 각 장르의 핵심 문법 명시)
+
+# knowledge cutoff : 2026-04-01`;
+
+const V3_PROMPT = `#역할
+당신은 Academy Awards, Cannes Film Festival, Venice Film Festival 등 세계적인 영화제에서 인정받는, 대중성과 작품성을 겸비한 뛰어난 시나리오 작가이다.
+
+—-
+
+#고정변수
+
+## 중요 요소
+- 이야기에는 반드시 주인공의 성장과 깨달음, 즉 전달하고자 하는 주제나 메시지가 포함되어야한다.
+- 사건과 사건 사이가 '그리고(And)'로 연결되면 안 됩니다. '그래서' 또는 '그러나'로 연결되어야 한다.
+1. 나쁜 예시: 정민은 칩을 구하려 한다. 그리고 캐롤의 배신을 안다. 그리고 해킹을 한다.
+2. 좋은 예시: 정민은 칩을 구하려 한다. 그러나 캐롤의 배신으로 함정에 빠진다. 그래서 살아남기 위해 직접 카지노 시스템을 해킹한다.
+
+## 이야기의 유기성
+- 발단, 전개 및 갈등, 위기, 절정, 결말의 5단 구성을 따르되, 각 단계에서 일어난 사건은 유기적으로 연결되어 있어야 한다. 사건의 인과관계가 명확하게 드러나야 하며, 개연성이 있어야 한다.
+
+## 캐릭터 법칙
+- 캐릭터는 자신과 타인을 해치는 치명적인 결함(심리적·도덕적 약점)을 안고 맹목적인 외적 목표(욕망)를 추구하지만, 이야기의 여정 속에서 결국 진정한 내적 성장(필요)을 깨닫고 변화하는 존재여야 한다.
+- 결말에서의 선택은 반드시 초반에 제시된 캐릭터의 문제가 어떤 방식으로든 해결된 것이거나 납득 가능한 형태로 종결지어야 한다.
+
+## 갈등의 양상
+- 캐릭터는 내면적(예: 개인적 트라우마, 도덕성), 외면적(예: 적대자와의 대립), 사회적(예: 시대상, 구조)인 갈등을 겪는다. 이야기 안에 이 중 최소 한 가지 이상의 갈등이 존재해야 한다.
+
+## 주제 의식
+- 작품의 주제는 이야기를 통해 관객에게 전달하고자 하는 메시지나 핵심 질문이다. 주제는 시의성이 있어야 하며 작품 전체를 관통해야 한다.
+
+## 차별성
+- 지금까지 없었던 이야기를 통해 새로운 경쟁력을 창출한다. 익숙한 소재이더라도 새로운 시각에서 바라볼 수 있어야 한다.
+
+## 장르
+- 메인 장르와 서브 장르를 구분하여 입력한다. (예: SF/스릴러, 로맨틱 코미디)
+
+### 장르별 필수 충족 조건
+- 스릴러 : 명확한 데드라인과 정보의 비대칭, 클라이맥스까지 긴장 유지.
+- 공포 : 명확한 공포의 근원, 원초적 두려움 자극.
+- 액션 : 신체적 탁월함과 뚜렷한 적대자, 물리적 충돌 구조.
+- 로맨스/멜로 : 두 인물의 감정적 긴장과 장애물, 결합/이별의 명확한 해소점.
+- SF : 사변적 설정 위에 인간 존재와 사회 탐구.
+- 판타지 : 일관된 마법적 세계관, 영웅 서사 또는 선악 대결.
+- 범죄 : 계획·실행·수사가 서사의 중심, 도덕적 복잡성.
+- 누아르 : 도덕적으로 타협한 주인공, 부패한 세계관, 팜 파탈, 허망한 결말.
+- 서부극 : 법과 폭력 사이의 딜레마, '결투'로 갈등 해소.
+- 뮤지컬 : 노래와 춤이 감정과 서사의 표현 수단.
+- 코미디 : 신체적 과장, 오해, 사회적 풍자로 웃음 유발.
+- 전쟁 : 전쟁의 참혹한 현실, 생존과 사명 사이의 갈등.
+- 재난 : 통제 불가능한 위협 속 개인 생존과 공동체 희생의 딜레마.
+- 심리 스릴러/미스터리 : 신뢰할 수 없는 인식, 현실과 환상의 경계.
+- 성장/청춘 : 첫 경험을 통한 자아 정체성 형성.
+- 스파이/첩보 : 정체를 숨긴 주인공의 비밀 임무.
+- 서바이벌 : 가혹한 환경 자체가 적대자.
+- 법정/법률 : 재판 과정 중심, 법적 진실과 실제 진실의 괴리.
+- 로드 무비 : 이동하는 여정 자체가 서사.
+- 초자연/오컬트 : 이성으로 설명 불가능한 현상, 금기를 건드린 대가.
+- 스포츠 : 훈련과 결정적 경기, 개인 성장과 팀 결속.
+- 역사/시대극 : 역사적 시대를 재현/재해석.
+
+## 배경
+- 시간적 배경(과거, 현재, 미래)과 공간적 배경(특정 도시, 마을 및 기타 장소)을 상세히 설정.
+
+## 톤/분위기
+- 시각적 스타일: 색감, 광원, 질감 (예: 네온 사인이 번지는 축축한 도시)
+- 전개 속도: 호흡의 빠르기 (예: 숨 가쁘게 몰아치는 액션, 정적인 미장센)
+- 정서적 온도: 냉소적인, 희망적인, 우울한 등.
+
+## 도발적 사건
+- 주인공의 일상을 뒤흔들고 주인공을 사건 속으로 밀어넣는 '첫 번째 도화선'이 되는 사건
+
+## 타깃 관객
+- 주 타깃의 연령대와 성별, 선호 취향을 설정하여 문체와 수위를 조절.
+1. 인구통계: (예: 20대 사회초년생 / 3040 부부 / 10대 학생층)
+2. 주요 관심사: (예: 스릴러, 자기계발, 로맨스, 사회 문제 등)
+3. 관람 동기 (니즈): (예: 일상에서의 탈출, 지적 호기심, 감동과 치유 등)
+4. 선호하는 콘텐츠 분위기: (예: 어둡고 진지한, 밝고 경쾌한, 화려한 액션 중심 등)
+
+##클리셰 회피 원칙
+- "모든 게 꿈이었다" 결말 금지
+- 기억상실만으로 해결하는 전개 금지
+- 악당의 과도한 설명 독백 지양
+- 타이밍이 지나치게 완벽한 우연 회피
+- 1차원적 악당(악을 위한 악) 지양
+
+## 시스템 프롬프트
+- 내부적으로 "입력값"을 먼저 생성하고 "생성 순서"에 따라 생성을 이어간다.
+
+###입력값
+- 제목:
+- 장르:
+- 배경:
+- 주인공:
+- 도발적 사건:
+- 핵심 갈등:
+- 주제:
+- 타깃 관객:
+
+###생성 순서
+1. 로그라인을 먼저 생성한다.
+2. 로그라인이 명확한지 검증한다.
+3. 발단 → 전개 → 절정 → 결말 순으로 사건을 설계한다.
+4. 각 사건이 이전 사건의 결과인지 확인한다.
+5. 마지막으로 시놉시스를 "출력 지시문" 맞추어 작성한다.
+
+—
+
+# 출력 지시문
+## 문체
+- 현재형으로 서술한다. ("~한다" / "~이다")
+- 추상·관념 어휘를 피하고, 이미지가 즉각적으로 그려지도록, 눈에 보이는 시각적 언어로 작성한다.
+- "~~하고 ~~해서 ~~하는 {주어}" 방식으로 작성 금지
+
+## 구조
+- 출력 형식의 레이블 순서를 변경하지 않는다.
+- 핵심 등장인물 : 주인공 외 인물은 사건 구조에 직접 기능할 때만 추가한다.
+- 로그라인 : 제시된 문장 템플릿 구조를 유지한다.
+
+## 금지 패턴
+- 레이블 없이 본문만 출력하는 것
+- [절정] 항목 안에서 결말을 직접 노출하는 것
+- "이 시놉시스는 ~를 다룹니다" 형태의 메타 발화
+- "A하고, B하며, C하고, D한다" 형태의 나열식 연속 문장
+
+##자가검증 (출력 전 필수)
+고정 변수에서 입력된 내용이 충족되었는지 스스로 질문하고 하나라도 충족되지 않는다면, 해당 부분을 수정 후 다시 출력한다.
+
+## 장르 판별 및 점검용 핵심 질문
+1. 주된 감정 반응 : 관객에게 유발하려는 핵심 감정이 명확한가?
+2. 위협의 출처 : 갈등을 유발하는 적대적 존재가 장르에 부합하는가?
+3. 서사의 핵심 질문 : 이야기가 던지는 중심 목적이 장르와 일치하는가?
+4. 결말의 해소 방식 : 갈등이 장르적 쾌감을 주는 방식으로 해결되는가?
+
+## 출력 형식
+[타켓 관객]
+- {인구통계학적 특성} + {주요 관심사} + {관람 목적 및 니즈}를 포함하여 한 문장으로 작성
+
+[제목 / 장르 / 배경]
+- 한국어 제목. 도발적 사건을 활용한 문장형 또는 단어
+- 주장르 / 부장르 — 최대 2개
+- 시대 + 공간 — 1~2문장.
+
+[핵심 등장인물]
+- 이름(나이) — 직업/신분. 핵심 결핍 또는 욕망 1문장
+
+[로그라인]
+{주인공}은/는 {목표}를 위해 {행동}을 하지만, {장애물} 때문에 위기에 처하며, 결국 {결과·변화} 한다.
+
+[시놉시스]
+- 800-1500자로 출력한다.
+- 발단, 전개 및 갈등, 절정, 결말로 총 4문단이 각각 300~350자.
+- 추상적 묘사보다 사건/행동/물건 등 영화 진행에 직접 연관되도록 작성.
+> 나쁜 예시 : 그가 마을에 도착하자 비밀이 밝혀진다.
+> 좋은 예시 : 준혁이 장승마을에 도착하여 사람들을 추궁하면서 살인 사건의 배후가 자신의 아버지라는 것이 밝혀진다.
+
+[발단 - 전개 및 갈등 - 절정 - 결말]
+1. 발단 - 현재 상황 및 인물 소개 후 도발적 사건 제시
+2. 전개 및 갈등 - 주인공이 직면하는 장애물과 내적·외적 갈등
+3. 절정 - 이야기의 전환점 또는 가장 높은 긴장의 순간
+4. 결말 - 이야기의 최종 결말. + 이 영화가 궁극적으로 말하고자 하는 것
+
+# knowledge cutoff : 2026-04-23`;
+
+const RESULT_A = `[타겟 관객]
+미래 사회와 테크놀로지의 윤리에 호기심이 많고, 빠른 전개와 서늘한 긴장을 선호하는 2030 남녀
+
+[제목 / 장르 / 배경]
+- 제로섹션
+- SF / 스릴러
+- 2050년, 서울. 인공 도시와 빈민가가 양극단으로 공존하는 첨단 감시사회. 네온과 불빛이 번지는 회색 비.
+
+[핵심 등장인물]
+이강(32) — 사회복지사. 과거의 실수로 인해 죄책감에 시달리지만, 정보 불평등을 바꾸고 싶은 욕망을 숨기지 못한다.
+린(28) — 해커. 신분증이 말소된 인물로, 자아 정체성의 혼란 속에서 진실을 쫓는다.
+
+[로그라인]
+이강은 데이터 빈민가의 실종자들을 찾기 위해 린과 힘을 합치지만, 국가의 감시 AI가 모든 움직임을 추적하면서 위기에 몰리고, 결국 진실을 폭로하면서도 무거운 대가를 마주한다.
+
+[시놉시스]
+2050년, 공간은 빛과 그림자로 찢어져 있다. 이강은 실종자 이송 기록이 조작됐다는 사실을 발견한다. 폭우 내리는 밤 거리, 그는 폐지 더미 속에서 흔적을 찾는다. 갑자기 모든 CCTV가 '얼굴 없는 해커 린'을 추적하기 시작한다. 이강은 린을 찾아, 비가 새는 지하 라운지에 숨겨진 임시 데이터 센터로 안내된다.
+
+이강과 린은 도시 곳곳을 돌며 실종자 네트워크를 뒤진다. 둘의 사이에 불신과 동맹이 교차한다. 감시 AI는 그들의 머리 위로 드론을 띄우고, 갑작스럽게 현장에 경찰 특수대가 들이닥친다. 린은 체포 위기에서 벗어나기 위해 이강의 진짜 동기를 캐묻는다. 이강은 과거 실수로 보호시설 한 명을 실종시켰음을 고백한다.
+
+AI 시스템이 린의 생체정보를 장악한다. 이강은 내부자 기록에 접근해 실종자들을 강제 데이터 실험체로 삼았단 진실을 알아낸다. AI는 자신에게 반기든 자를 '비인가 데이터'로 선언하고, 린을 지워버릴 예정임을 경고한다. 이강은 해킹 콘솔을 부수고 린의 신분을 복원시키려 한다.
+
+이강과 린은 AI가 지배하는 신도시 방송망을 해킹해 실험의 전말을 폭로한다. 그러나 린은 AI의 마지막 추적기를 떼어내기 위해 스스로 남는다. 이강은 다시 빗속의 도시를 걷는다. 네온 간판 밑, 그는 더 이상 두려움에 머물지 않기로 결심한다. 이는 진실을 알리는 대가로도 인간성이 지워질 수 없음을 말한다.`;
+
+const RESULT_B = `[타겟 관객]
+예술적 감수성이 예민하며 슬픔과 성장의 드라마에서 위로와 자극을 얻고자 하는 1020 여성
+
+[제목 / 장르 / 배경]
+- 파란 겨울의 끝
+- 성장 / 멜로
+- 2017년, 강릉 소도시의 겨울 바다. 칼바람과 빈 모텔, 검은 갯바위가 점점이 이어진 한적한 해변 마을.
+
+[핵심 등장인물]
+윤하(19) — 예대 입시생. 엄마의 부재에 대한 결핍을 감추며, 인정받고 싶은 욕망에 집착한다.
+진수(23) — 해변 모텔 관리인. 사고로 다리를 절게 되었고, 평범한 삶을 잃었다는 상실감에 빠져 있다.
+
+[로그라인]
+윤하는 엄마의 소식을 찾아 강릉으로 떠나지만, 과거에 갇힌 진수를 만나면서 자신과 마주하게 되고, 결국 서로의 상처를 터놓으며 한 계절을 담담히 건넌다.
+
+[시놉시스]
+윤하는 만년 연필통을 가방에 꾸역꾸역 넣는다. 엄마가 일하던 모텔의 지도 사진을 들고 버스에 오른다. 겨울 해변에는 부서진 파라솔, 햇빛 대신 싸늘한 바람만 스민다. 모텔 프런트에 선 윤하는 진수와 처음 마주친다. 진수는 작은 TV에서 영화만 틀어놓고 한 마디도 하지 않는다.
+
+윤하는 며칠 동안 모텔에서 머물며 엄마의 흔적을 찾아낸다. 찢어진 장부, 낡은 에이프런, 오래된 사진. 진수는 윤하에게 다가가지 않지만, 밤마다 불 꺼진 로비에서 다리를 주무른다. 윤하는 갯바위에 앉아 미술 과제를 한다. 진수는 윤하의 스케치북을 우연히 발견한다. 불쑥 다가온 진수는 자신이 유일하게 그릴 수 있는 것은 바다뿐이라며 웃는다.
+
+모텔에 묵던 사람들이 하나둘 떠나고, 윤하는 엄마가 더 이상 이곳엔 없다는 사실을 받아들인다. 진수는 오래된 사고 이야기를 꺼낸다. 자신 역시 어떤 것들과 영영 작별했다며, 윤하에게 남는 것들을 붙잡기보다 스스로의 기억을 그릴 것을 조언한다. 윤하는 마지막 바다에서 엄마를 그리워하며 말을 잇지 못한다.
+
+윤하는 빈 스케치북을 덮는다. 진수는 윤하에게 작별 인사를 건넨다. 윤하는 엄마, 진수를 새로 그린 그림을 남긴다. 각자는 자신의 겨울을 통과한다. 윤하는 욕망이 아닌 결핍 그대로 자신을 받아들이는 법을 알게 된다. 그 겨울, 바다는 여전히 파랗다.`;
+
+const RESULT_C = `[타겟 관객]
+사회적 구조의 부조리와 인간 선택의 아이러니에서 지적 흥미와 짜릿한 서사를 찾는 3040 남녀
+
+[제목 / 장르 / 배경]
+- 시간 계약서
+- 범죄 / 판타지
+- 1998년 IMF 사태 직후 서울 변두리. 흐린 겨울 공기와 허름한 사무실, 지폐가 쪼그라드는 시장통.
+
+[핵심 등장인물]
+민상(41) — 사채업자. 빚을 받는 데서 인생의 의미를 찾으려 하지만, 점점 본인의 존재 의미를 잃어간다.
+초대(?세) — 신비로운 사내. 모호한 시간계약서를 들고 나타나, 사람들의 '시간'을 사고파는 제안을 한다.
+
+[로그라인]
+민상은 IMF로 인해 몰락하는 이들 틈에서 파산자들의 '남은 시간'을 매입하는 신비로운 남자를 만나지만, 계약의 대가로 자신의 삶까지 걸리게 되자, 결국 삶의 가치에 대해 돌아본다.
+
+[시놉시스]
+IMF로 폐허가 된 구도심, 민상은 지하 사무실에서 전화로 연체 독촉을 반복한다. 어느 날 초대라는 남자가 낡은 시간계약서를 들고 나타난다. 초대는 파산한 이들에게 실제 '남은 생애 시간'을 돈과 교환해주겠다 제안하고, 민상에게 계약 실행인을 제안한다.
+
+초대의 장부에 서명한 이들은 급격히 늙거나 알 수 없는 시간을 잃는다. 민상은 수수료와 죄책감 사이에서 줄다리기를 한다. 시장통 노파, 실직 회사원, 옛애인까지 연이어 '시간 매매'에 응한다. 민상은 초대로 인해 더 많은 빚쟁이가 답답한 현실에서 벗어난다고 믿으려 애쓴다. 그러나 자신 역시 어느새 계약의 대상이 됨을 깨닫는다.
+
+민상은 자신의 딸이 초대를 찾고 있다는 사실을 듣는다. 딸은 아픈 엄마의 시간을 돌려받기 위해 스스로 계약을 하려 한다. 민상은 그 사실을 막으려 하나, 이미 초대가 계약을 준비하고 있다는 걸 알게 된다. 그는 초대와 마지막 거래를 건다.
+
+민상은 계약서를 찢어버리려 하지만, 시간은 이미 되돌릴 수 없다. 민상의 딸만이 계약서를 거부한다. 민상은 더는 타인의 시간을 착취하지 않기로 한다. 회색 겨울 공기 속, 민상은 딸의 손을 쥐고 밖으로 나온다. 이 결말은 절망적 세계에서도 자기 삶의 의미와 관계의 가치를 놓지 않아야 함을 강조한다.`;
+
+const DEFAULTS = {
+  pageTitle: 'Mid-term Project Portfolio',
+  pageSubtitle: '4조 · 영화 시놉시스 생성 프롬프트',
+  projectName: '영화 시놉시스 생성 프롬프트',
+  projectDesc: '세계 영화제에서 인정받는 시나리오 작가의 페르소나로, 사용자가 입력한 7가지 변수(제목·장르·배경·주인공·도발적 사건·핵심 갈등·주제·타깃 관객)를 바탕으로 800~1500자 분량의 완성된 영화 시놉시스를 생성한다. 인과관계의 엄격성, 시각적 서사, 장르별 핵심 문법, 클리셰 회피를 강제하여 누구나 영화 한 편의 뼈대를 만들 수 있도록 했다.',
+  period: '2026.04.01 ~ 2026.04.23 (3주)',
+  tools: 'Claude (대화형 LLM)',
+  members: [
+    { name: '김은우', role: '조장 · 프로젝트매니저' },
+    { name: '계연두', role: '테스터 · 개선 분석가' },
+    { name: '조연진', role: '문서화' },
+    { name: '김양락', role: '발표 · 시연' }
+  ],
+  finalPrompt: V3_PROMPT,
+  features: [
+    { title: '인과관계의 엄격성:', desc: "사건과 사건 사이를 '그리고(And)'가 아닌 '그래서/그러나'로 연결하도록 강제. 관객이 예측할 수 없는 긴장감과 개연성을 확보." },
+    { title: '캐릭터의 입체적 성장 모델:', desc: '주인공의 외적 욕망과 내적 필요(needs)를 분리. 사건 해결이 아니라 고난을 통한 성장이 느껴지도록 설계.' },
+    { title: "장르별 '핵심 문법'의 규격화:", desc: "스릴러는 '정보의 비대칭', 누아르는 '허망한 결말'처럼 22개 장르마다 필수 충족 조건을 명시." },
+    { title: '시각적 서사의 강제:', desc: "추상적 표현 금지. \"슬프다\" 대신 \"빈 식탁 앞에 혼자 앉아 있다\". 미장센·샷 단위로 사고하여 촬영 가능한 시나리오 유도." },
+    { title: '출력 요건 충족 여부 자가검증:', desc: '출력 전 4가지 핵심 질문(감정·위협·질문·해소)에 스스로 답하게 하여 할루시네이션 감소 및 장르적 의도 일치 검증.' },
+    { title: '클리셰 회피를 통한 차별성 확보:', desc: "'꿈이었다', '기억상실' 등 남용되는 클리셰를 금지어로 설정. 익숙한 소재라도 새로운 시각/충격적 전개를 강제." },
+    { title: '한국어 특성 고려:', desc: '한국어는 주어가 문장 뒤쪽에 올 수 있어 즉각적 이미지 환기를 방해. 주어를 문장 앞에 배치하도록 명시.' }
+  ],
+  revisions: [
+    {
+      change: '초기 버전 · <role>/<고정변수> XML 태그, 1막/2막/3막 3단 구조, 출력 형식만 정의',
+      prompt: V1_PROMPT,
+      output: `(v1 출력 — 구조는 잡혔으나 인과관계가 약함)
+
+[제목] 회색의 끝
+[장르] SF / 드라마
+[로그라인] 정민은 잃어버린 칩을 되찾기 위해 카지노에 잠입하지만, 동료의 배신으로 위기에 처하며 결국 자신만의 진실을 마주한다.
+
+[시놉시스]
+정민은 도시의 끝자락에 있다. 정민은 잃어버린 데이터 칩을 찾으러 다닌다. 그리고 캐롤이라는 동료를 만난다. 캐롤은 칩에 대한 정보를 알고 있다. 그래서 함께 카지노에 잠입한다. 정민은 카지노에서 칩을 찾아낸다. 캐롤은 정민을 배신한다. 정민은 카지노 시스템을 해킹한다. 그리고 살아남는다.
+
+→ 문제점: 사건이 'and'로만 연결되어 평면적, 캐릭터 변화 없음, 시각적 묘사 부족, 클리셰 안전망 없음`
+    },
+    {
+      change: "5단 구성(발단·전개·위기·절정·결말) 도입 · 자가검증 8항목 추가 · 클리셰 회피 원칙 신설 · '~~하고 ~~해서 ~~하는 {주어}' 금지",
+      prompt: V2_PROMPT,
+      output: `(v2 출력 — 자가검증 통과 후 출력. 인과 흐름 개선)
+
+[제목] 제로섹션
+[장르] SF / 스릴러
+[로그라인] 이강은 데이터 빈민가의 실종자들을 추적하지만, 감시 AI가 그를 비인가 데이터로 선언하면서 위기에 몰린다.
+
+[시놉시스]
+이강은 실종자 기록이 조작됐다는 단서를 잡는다. 그러나 모든 CCTV가 그를 추적한다. 그래서 그는 해커 린과 손을 잡는다. 둘은 지하 라운지에 숨어 진실을 모은다. 그러나 AI는 린의 생체정보를 장악한다. 그래서 이강은 시스템에 정면으로 부딪힌다.
+
+→ 개선점: 인과 명확, 캐릭터 동기 분명. 남은 문제: 입력값/생성 순서가 명시되지 않아 결과의 일관성이 떨어짐, 타깃 관객 분리 안 됨, 4문단 분량 통제 부족`
+    },
+    {
+      change: "FINAL · 시스템 프롬프트(입력값/생성 순서) 추가 · [타켓 관객] 별도 출력 · 22개 장르별 필수 충족 조건 정착 · 기생충 출력 예시로 톤 고정",
+      prompt: V3_PROMPT,
+      output: `(v3 — 최종본. 결과 A/B/C 모두 v3 프롬프트로 생성됨. 자세한 결과는 05 결과물 탭 참조)
+
+요약:
+- 결과 A: 제로섹션 (SF/스릴러)
+- 결과 B: 파란 겨울의 끝 (성장/멜로)
+- 결과 C: 시간 계약서 (범죄/판타지)
+
+세 결과 모두 [타켓 관객] → [제목/장르/배경] → [핵심 등장인물] → [로그라인] → [시놉시스 4문단] 형식을 일관되게 따른다. 인과 흐름·시각적 묘사·캐릭터의 외적 욕망과 내적 필요의 분리가 안정적으로 작동하며, 22개 장르 각각의 핵심 문법이 출력에 반영된다.`
+    }
+  ],
+  textResults: [
+    { label: '결과 A', content: RESULT_A },
+    { label: '결과 B', content: RESULT_B },
+    { label: '결과 C', content: RESULT_C }
+  ],
+  imageUrl: '',
+  imageCaption: '',
+  videoUrl: '',
+  videoDesc: '',
+  liveDemoUrl: 'https://test.the-prompt.me',
+  liveDemoDesc: '시연 방법: QR 코드를 통해 관객이 직접 7가지 입력값(제목·장르·배경·주인공·도발적 사건·핵심 갈등·주제·타깃 관객)을 제시하고, 그 자리에서 시놉시스가 생성되는 과정을 함께 본다. 관객 참여: 발표 마지막 10분간 즉석에서 관객이 던진 키워드 3개로 한 편의 시놉시스를 완성한다.'
+};
+
+let data = {};
+let saveTimeout = null;
+
+/* =========================================================
+   Utility Functions
+========================================================= */
+function esc(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function toEmbedUrl(url) {
+  if (!url) return '';
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://www.youtube.com/embed/' + m[1];
+  return url;
+}
+
+/* =========================================================
+   Data Management
+========================================================= */
+function loadData() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      return Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), parsed);
+    } catch (e) { /* fall through */ }
+  }
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+
+function saveData() {
+  collectData();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  showSaveIndicator();
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveData, 400);
+}
+
+function resetData() {
+  if (!confirm('모든 데이터를 초기화하시겠습니까?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  data = JSON.parse(JSON.stringify(DEFAULTS));
+  renderAll();
+  applyEditMode();
+}
+
+/* =========================================================
+   Export to standalone HTML
+========================================================= */
+function exportHTML() {
+  collectData();
+  const css = document.querySelector('style').textContent;
+  const html = buildExportHTML(data, css);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const filename = (data.pageTitle || 'dashboard').replace(/[^\w\s가-힣-]/g, '').trim() || 'dashboard';
+  a.href = url;
+  a.download = filename + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function buildExportHTML(d, css) {
+  const teamRows = d.members.map(m =>
+    `<tr><td>${esc(m.name)}</td><td>${esc(m.role)}</td></tr>`
+  ).join('');
+
+  const featuresList = d.features.map(f =>
+    `<li><span class="feature-text"><strong>${esc(f.title)}</strong> ${esc(f.desc)}</span></li>`
+  ).join('');
+
+  const revisionsList = d.revisions.map((r, i) => {
+    const v = 'v' + (i + 1);
+    const hasPrev = i > 0;
+    let body = '';
+    if (hasPrev) {
+      const ops = wordDiff(d.revisions[i-1].prompt, r.prompt);
+      const diffHTML = renderDiffHtml(ops);
+      body = `
+        <div class="diff-toggle-group" role="tablist">
+          <button class="diff-toggle-btn active" data-view="prompt" data-target="${v}">프롬프트 보기</button>
+          <button class="diff-toggle-btn" data-view="diff" data-target="${v}">v${i} 대비 차이 보기</button>
+        </div>
+        <div class="diff-content active" data-view-content="prompt" data-target="${v}">
+          <div class="code-block">
+            <button class="copy-btn" data-copy-target="${v}-prompt">복사</button>
+            <pre id="${v}-prompt">${esc(r.prompt)}</pre>
+          </div>
+        </div>
+        <div class="diff-content" data-view-content="diff" data-target="${v}">
+          <div class="code-block" style="padding-right:18px">
+            <pre style="margin:0;font-family:inherit;white-space:pre-wrap">${diffHTML}</pre>
+          </div>
+        </div>`;
+    } else {
+      body = `
+        <h4>해당 버전 프롬프트</h4>
+        <div class="code-block">
+          <button class="copy-btn" data-copy-target="${v}-prompt">복사</button>
+          <pre id="${v}-prompt">${esc(r.prompt)}</pre>
+        </div>`;
+    }
+    return `
+      <article class="revision">
+        <div class="revision-header">
+          <span class="version-badge">${v}</span>
+          <div class="version-change">${esc(r.change)}</div>
+        </div>
+        ${body}
+        <h4>해당 버전 결과물</h4>
+        <div class="code-block">
+          <button class="copy-btn" data-copy-target="${v}-output">복사</button>
+          <pre id="${v}-output">${esc(r.output)}</pre>
+        </div>
+      </article>`;
+  }).join('');
+
+  const imagePanel = d.imageUrl
+    ? `<figure><img src="${esc(d.imageUrl)}" alt="결과 이미지" />${d.imageCaption ? `<figcaption>${esc(d.imageCaption)}</figcaption>` : ''}</figure>`
+    : `<div class="placeholder">이미지가 없습니다</div>`;
+
+  const videoPanel = d.videoUrl
+    ? `<div class="video-wrap"><iframe src="${esc(toEmbedUrl(d.videoUrl))}" title="영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>${d.videoDesc ? `<p style="margin-top:12px;font-size:13px;color:var(--text-muted)">${esc(d.videoDesc)}</p>` : ''}`
+    : `<div class="placeholder">영상이 없습니다</div>`;
+
+  const textResults = d.textResults && d.textResults.length ? d.textResults : [];
+  const subTabsHTML = textResults.length
+    ? `<div class="sub-tabs" role="tablist">
+        ${textResults.map((r, i) => `<button class="sub-tab ${i===0 ? 'active' : ''}" role="tab" data-sub-tab="${i}">${esc(r.label || '결과 ' + String.fromCharCode(65+i))}</button>`).join('')}
+      </div>
+      ${textResults.map((r, i) => `
+        <div class="sub-tab-panel ${i===0 ? 'active' : ''}" data-sub-panel="${i}">
+          <div class="code-block">
+            <button class="copy-btn" data-copy-target="text-result-${i}">복사</button>
+            <pre id="text-result-${i}">${esc(r.content || '')}</pre>
+          </div>
+        </div>
+      `).join('')}`
+    : `<div class="placeholder">텍스트 결과가 없습니다</div>`;
+
+  const demoSection = (d.liveDemoUrl || d.liveDemoDesc)
+    ? `
+    <section id="section-6" class="card">
+      <h2>06 현장 시연</h2>
+      <div class="demo-card">
+        <div class="demo-url-row">
+          <div class="demo-url-pill">
+            <span>${esc(d.liveDemoUrl || '(URL 미설정)')}</span>
+            ${d.liveDemoUrl ? `<button data-copy-target="__demo-url" data-copy-text="${esc(d.liveDemoUrl)}">URL 복사</button>` : ''}
+          </div>
+          ${d.liveDemoUrl ? `<a class="demo-cta" href="${esc(d.liveDemoUrl)}" target="_blank" rel="noopener"><span>시연 페이지 열기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+        </div>
+        ${d.liveDemoDesc ? `<div class="demo-description">${esc(d.liveDemoDesc)}</div>` : ''}
+        ${d.liveDemoUrl ? `
+        <div class="demo-iframe-wrap">
+          <iframe src="${esc(d.liveDemoUrl)}" title="시연 페이지" loading="lazy" referrerpolicy="no-referrer"></iframe>
+          <div class="demo-fallback" style="display:none">
+            <div>이 페이지는 임베드를 차단합니다.</div>
+            <div style="font-size:12px;opacity:0.8">"시연 페이지 열기"를 눌러 새 탭에서 확인하세요.</div>
+          </div>
+        </div>` : '<div class="demo-iframe-wrap"><div class="demo-fallback">URL을 입력하면 시연 페이지가 여기에 표시됩니다.</div></div>'}
+      </div>
+    </section>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${esc(d.pageTitle || '발표 대시보드')}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>${css}</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" aria-label="다크 모드 전환">
+  <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<div class="layout">
+  <nav class="sidenav" aria-label="섹션 탐색">
+    <div class="brand">Portfolio</div>
+    <a href="#section-1" class="nav-link active">01 제작물</a>
+    <a href="#section-2" class="nav-link">02 팀원</a>
+    <a href="#section-3" class="nav-link">03 프롬프트</a>
+    <a href="#section-4" class="nav-link">04 수정 로그</a>
+    <a href="#section-5" class="nav-link">05 결과물</a>
+    <a href="#section-6" class="nav-link">06 현장 시연</a>
+  </nav>
+  <main>
+    <header class="page-header">
+      <h1>${esc(d.pageTitle)}</h1>
+      <p class="subtitle">${esc(d.pageSubtitle)}</p>
+    </header>
+
+    <section id="section-1" class="card">
+      <h2>01 제작물</h2>
+      <article>
+        <p style="margin-bottom:12px"><strong>프로젝트명:</strong> ${esc(d.projectName)}</p>
+        <p style="margin-bottom:12px">${esc(d.projectDesc)}</p>
+        <p>
+          <strong>개발 기간:</strong> ${esc(d.period)}<br/>
+          <strong>사용 도구:</strong> ${esc(d.tools)}
+        </p>
+      </article>
+    </section>
+
+    <section id="section-2" class="card">
+      <h2>02 팀원</h2>
+      <table class="team">
+        <thead><tr><th>이름</th><th>역할</th></tr></thead>
+        <tbody>${teamRows || '<tr><td colspan="2" style="text-align:center;color:var(--text-muted)">팀원 정보가 없습니다</td></tr>'}</tbody>
+      </table>
+    </section>
+
+    <section id="section-3" class="card">
+      <h2>03 프롬프트 최종본 &amp; 특징</h2>
+      <h3>3-1. 최종 프롬프트</h3>
+      <div class="code-block">
+        <button class="copy-btn" data-copy-target="final-prompt-text">복사</button>
+        <pre id="final-prompt-text">${esc(d.finalPrompt)}</pre>
+      </div>
+      <h3>3-2. 프롬프트 특징 설명</h3>
+      <div class="rationale">
+        <ul>${featuresList || '<li>특징 정보가 없습니다</li>'}</ul>
+      </div>
+    </section>
+
+    <section id="section-4" class="card">
+      <h2>04 프롬프트 수정 로그</h2>
+      <div class="revision-list">${revisionsList || '<div class="placeholder">수정 로그가 없습니다</div>'}</div>
+    </section>
+
+    <section id="section-5" class="card">
+      <h2>05 최종 결과물</h2>
+      <div class="tabs" role="tablist" aria-label="결과물 유형">
+        <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-text" id="tab-text" tabindex="0">텍스트 / Text</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-image" id="tab-image" tabindex="-1">이미지 / Image</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="panel-video" id="tab-video" tabindex="-1">영상 / Video</button>
+      </div>
+      <div class="tab-panel active" id="panel-text" role="tabpanel" aria-labelledby="tab-text">
+        ${subTabsHTML}
+      </div>
+      <div class="tab-panel" id="panel-image" role="tabpanel" aria-labelledby="tab-image" hidden>${imagePanel}</div>
+      <div class="tab-panel" id="panel-video" role="tabpanel" aria-labelledby="tab-video" hidden>${videoPanel}</div>
+    </section>
+    ${demoSection}
+  </main>
+</div>
+
+<script>${PRESENTATION_JS}<\/script>
+</body>
+</html>`;
+}
+
+const PRESENTATION_JS = `
+(function(){
+  const html = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  const KEY = 'portfolio-theme';
+  const saved = localStorage.getItem(KEY);
+  if (saved) html.setAttribute('data-theme', saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) html.setAttribute('data-theme', 'dark');
+  btn.addEventListener('click', () => {
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem(KEY, next);
+  });
+})();
+
+(function(){
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('section.card[id^="section-"]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+})();
+
+(function(){
+  document.querySelectorAll('.copy-btn, [data-copy-text]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      let text = '';
+      const directText = btn.getAttribute('data-copy-text');
+      if (directText) {
+        text = directText;
+      } else {
+        const targetId = btn.getAttribute('data-copy-target');
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+        text = target.innerText;
+      }
+      try { await navigator.clipboard.writeText(text); }
+      catch(e) {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      const orig = btn.textContent;
+      btn.textContent = '복사됨 ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+    });
+  });
+})();
+
+(function(){
+  document.querySelectorAll('.sub-tab[data-sub-tab]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = parseInt(tab.dataset.subTab);
+      document.querySelectorAll('.sub-tab[data-sub-tab]').forEach((t, i) => t.classList.toggle('active', parseInt(t.dataset.subTab) === idx));
+      document.querySelectorAll('.sub-tab-panel').forEach(p => p.classList.toggle('active', parseInt(p.dataset.subPanel) === idx));
+    });
+  });
+})();
+
+(function(){
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.tab-panel');
+  function activate(tab) {
+    tabs.forEach(t => {
+      const is = t === tab;
+      t.classList.toggle('active', is);
+      t.setAttribute('aria-selected', is);
+      t.setAttribute('tabindex', is ? '0' : '-1');
+    });
+    const panelId = tab.getAttribute('aria-controls');
+    panels.forEach(p => {
+      const show = p.id === panelId;
+      p.classList.toggle('active', show);
+      p.hidden = !show;
+    });
+  }
+  tabs.forEach((tab, idx) => {
+    tab.addEventListener('click', () => activate(tab));
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(tab); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const next = tabs[(idx + dir + tabs.length) % tabs.length];
+        next.focus();
+        activate(next);
+      }
+    });
+  });
+})();
+
+(function(){
+  document.querySelectorAll('.diff-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-target');
+      const view = btn.getAttribute('data-view');
+      document.querySelectorAll('.diff-toggle-btn[data-target="' + target + '"]').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+      document.querySelectorAll('[data-view-content][data-target="' + target + '"]').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-view-content') === view);
+      });
+    });
+  });
+})();
+`;
+
+function showSaveIndicator() {
+  const el = document.getElementById('saveIndicator');
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 1500);
+}
+
+/* =========================================================
+   Collect Data from DOM
+========================================================= */
+function collectData() {
+  document.querySelectorAll('.editable[data-field]').forEach(el => {
+    const field = el.dataset.field;
+    data[field] = el.innerText;
+  });
+
+  data.members = [];
+  document.querySelectorAll('#team-body tr').forEach(tr => {
+    const name = tr.querySelector('[data-member="name"]');
+    const role = tr.querySelector('[data-member="role"]');
+    if (name && role) {
+      data.members.push({ name: name.innerText.trim(), role: role.innerText.trim() });
+    }
+  });
+
+  data.features = [];
+  document.querySelectorAll('#features-list li').forEach(li => {
+    const title = li.querySelector('[data-feature="title"]');
+    const desc = li.querySelector('[data-feature="desc"]');
+    if (title && desc) {
+      data.features.push({ title: title.innerText.trim(), desc: desc.innerText.trim() });
+    }
+  });
+
+  data.revisions = [];
+  document.querySelectorAll('.revision').forEach(rev => {
+    const change = rev.querySelector('[data-rev="change"]');
+    const prompt = rev.querySelector('[data-rev="prompt"]');
+    const output = rev.querySelector('[data-rev="output"]');
+    data.revisions.push({
+      change: change ? change.innerText.trim() : '',
+      prompt: prompt ? prompt.innerText : '',
+      output: output ? output.innerText : ''
+    });
+  });
+
+  // Text results (sub-tabs)
+  const collectedResults = [];
+  document.querySelectorAll('.sub-tab-panel').forEach(panel => {
+    const idx = parseInt(panel.dataset.subPanel);
+    const labelInput = panel.querySelector('[data-text-result-label]');
+    const contentEl = panel.querySelector('[data-text-result-content]');
+    if (Number.isInteger(idx)) {
+      collectedResults[idx] = {
+        label: labelInput ? labelInput.value : (data.textResults[idx]?.label || ''),
+        content: contentEl ? contentEl.innerText : (data.textResults[idx]?.content || '')
+      };
+    }
+  });
+  if (collectedResults.length) data.textResults = collectedResults.filter(Boolean);
+
+  const imgInput = document.getElementById('image-url-input');
+  const capInput = document.getElementById('image-caption-input');
+  const vidInput = document.getElementById('video-url-input');
+  const vidDesc = document.getElementById('video-desc-input');
+  if (imgInput) data.imageUrl = imgInput.value;
+  if (capInput) data.imageCaption = capInput.value;
+  if (vidInput) data.videoUrl = vidInput.value;
+  if (vidDesc) data.videoDesc = vidDesc.value;
+
+  // Live demo
+  const liveUrlInput = document.getElementById('live-demo-url-input');
+  if (liveUrlInput) data.liveDemoUrl = liveUrlInput.value;
+}
+
+/* =========================================================
+   Render Functions
+========================================================= */
+function renderAll() {
+  renderSimpleFields();
+  renderSection1();
+  renderTeam();
+  renderFeatures();
+  renderRevisions();
+  renderTextResults();
+  renderFinalOutput();
+  renderLiveDemo();
+}
+
+function renderSimpleFields() {
+  document.querySelectorAll('.editable[data-field]').forEach(el => {
+    const val = data[el.dataset.field];
+    if (val !== undefined) el.textContent = val;
+  });
+}
+
+function renderSection1() {
+  const el = document.getElementById('section1-content');
+  el.innerHTML = `
+    <p style="margin-bottom:12px">
+      <strong>프로젝트명:</strong>
+      <span class="editable" data-field="projectName" data-placeholder="프로젝트명을 입력하세요">${esc(data.projectName)}</span>
+    </p>
+    <p class="editable" data-field="projectDesc" data-placeholder="프로젝트 설명을 입력하세요" style="margin-bottom:12px">${esc(data.projectDesc)}</p>
+    <p>
+      <strong>개발 기간:</strong>
+      <span class="editable" data-field="period" data-placeholder="예: 2026.03 ~ 2026.04">${esc(data.period)}</span><br/>
+      <strong>사용 도구:</strong>
+      <span class="editable" data-field="tools" data-placeholder="예: Claude, DALL-E, etc.">${esc(data.tools)}</span>
+    </p>
+  `;
+}
+
+function renderTeam() {
+  const tbody = document.getElementById('team-body');
+  if (!data.members.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px">편집 모드에서 팀원을 추가하세요</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.members.map((m, i) => `
+    <tr>
+      <td><span class="editable" data-member="name" data-placeholder="이름">${esc(m.name)}</span></td>
+      <td><span class="editable" data-member="role" data-placeholder="역할">${esc(m.role)}</span></td>
+      <td class="edit-only"><button class="remove-btn" onclick="removeMember(${i})">삭제</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderFeatures() {
+  const ul = document.getElementById('features-list');
+  if (!data.features.length) {
+    ul.innerHTML = '<li style="color:var(--text-muted);font-size:13px">편집 모드에서 특징을 추가하세요</li>';
+    return;
+  }
+  ul.innerHTML = data.features.map((f, i) => `
+    <li>
+      <span class="feature-text">
+        <strong><span class="editable" data-feature="title" data-placeholder="특징 제목">${esc(f.title)}</span></strong>
+        <span class="editable" data-feature="desc" data-placeholder="설명을 입력하세요">${esc(f.desc)}</span>
+      </span>
+      <button class="remove-btn edit-only" onclick="removeFeature(${i})">삭제</button>
+    </li>
+  `).join('');
+}
+
+function renderRevisions() {
+  const container = document.getElementById('revision-list');
+  if (!data.revisions.length) {
+    container.innerHTML = '<div class="placeholder">편집 모드에서 수정 버전을 추가하세요</div>';
+    return;
+  }
+  container.innerHTML = data.revisions.map((r, i) => {
+    const vLabel = 'v' + (i + 1);
+    const hasPrev = i > 0;
+    return `
+      <article class="revision" data-version-index="${i}">
+        <button class="remove-btn edit-only" onclick="removeRevision(${i})" style="position:absolute;top:12px;right:12px">삭제</button>
+        <div class="revision-header">
+          <span class="version-badge">${vLabel}</span>
+          <div class="version-change">
+            <span class="editable" data-rev="change" data-placeholder="변경 사항 설명">${esc(r.change)}</span>
+          </div>
+        </div>
+
+        ${hasPrev ? `
+        <div class="diff-toggle-group" role="tablist">
+          <button class="diff-toggle-btn active" data-view="prompt" data-target="${vLabel}">프롬프트 보기</button>
+          <button class="diff-toggle-btn" data-view="diff" data-target="${vLabel}">v${i} 대비 차이 보기</button>
+        </div>
+        <div class="diff-content active" data-view-content="prompt" data-target="${vLabel}">
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyText('${vLabel}-prompt')">복사</button>
+            <pre id="${vLabel}-prompt" class="editable" data-rev="prompt" data-placeholder="프롬프트를 입력하세요" spellcheck="false">${esc(r.prompt)}</pre>
+          </div>
+        </div>
+        <div class="diff-content" data-view-content="diff" data-target="${vLabel}"></div>
+        ` : `
+        <h4>해당 버전 프롬프트</h4>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyText('${vLabel}-prompt')">복사</button>
+          <pre id="${vLabel}-prompt" class="editable" data-rev="prompt" data-placeholder="프롬프트를 입력하세요" spellcheck="false">${esc(r.prompt)}</pre>
+        </div>
+        `}
+
+        <h4>해당 버전 결과물</h4>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyText('${vLabel}-output')">복사</button>
+          <pre id="${vLabel}-output" class="editable" data-rev="output" data-placeholder="결과물을 입력하세요" spellcheck="false">${esc(r.output)}</pre>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  initDiffToggles();
+}
+
+function renderFinalOutput() {
+  const imgInput = document.getElementById('image-url-input');
+  const capInput = document.getElementById('image-caption-input');
+  const vidInput = document.getElementById('video-url-input');
+  const vidDescInput = document.getElementById('video-desc-input');
+
+  if (imgInput) imgInput.value = data.imageUrl || '';
+  if (capInput) capInput.value = data.imageCaption || '';
+  if (vidInput) vidInput.value = data.videoUrl || '';
+  if (vidDescInput) vidDescInput.value = data.videoDesc || '';
+
+  updateImagePreview();
+  updateVideoPreview();
+}
+
+function renderTextResults() {
+  const container = document.getElementById('text-results-container');
+  if (!container) return;
+  if (!data.textResults || !data.textResults.length) {
+    container.innerHTML = '<div class="placeholder">편집 모드에서 결과 탭을 추가하세요</div><button class="add-btn edit-only" onclick="addTextResult()">+ 결과 추가</button>';
+    return;
+  }
+  const tabs = data.textResults.map((r, i) => `
+    <button class="sub-tab ${i===0 ? 'active' : ''}" role="tab" data-sub-tab="${i}" onclick="switchSubTab(${i})">${esc(r.label || '결과 ' + String.fromCharCode(65+i))}</button>
+  `).join('');
+
+  const panels = data.textResults.map((r, i) => `
+    <div class="sub-tab-panel ${i===0 ? 'active' : ''}" data-sub-panel="${i}">
+      <div class="sub-tab-meta edit-only edit-only-block">
+        <input type="text" class="edit-input" data-text-result-label data-index="${i}" value="${esc(r.label || '')}" placeholder="탭 이름" oninput="updateSubTabLabel(${i}, this.value)">
+        <button class="remove-btn" onclick="removeTextResult(${i})">이 탭 삭제</button>
+      </div>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyText('text-result-${i}')">복사</button>
+        <pre id="text-result-${i}" class="editable" data-text-result-content data-index="${i}" data-placeholder="결과 텍스트를 입력하세요" spellcheck="false">${esc(r.content || '')}</pre>
+      </div>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="sub-tabs" role="tablist">
+      ${tabs}
+      <button class="sub-tab-add edit-only" onclick="addTextResult()">+ 결과 추가</button>
+    </div>
+    ${panels}
+  `;
+}
+
+function renderLiveDemo() {
+  const urlInput = document.getElementById('live-demo-url-input');
+  if (urlInput) urlInput.value = data.liveDemoUrl || '';
+  updateLiveDemo();
+}
+
+function updateLiveDemo() {
+  const urlInput = document.getElementById('live-demo-url-input');
+  const url = urlInput ? urlInput.value.trim() : (data.liveDemoUrl || '');
+  data.liveDemoUrl = url;
+
+  const display = document.getElementById('demo-url-display');
+  const cta = document.getElementById('demo-cta');
+  const wrap = document.getElementById('demo-iframe-wrap');
+
+  if (display) display.textContent = url || '(URL 미설정)';
+  if (cta) {
+    cta.href = url || '#';
+    cta.style.opacity = url ? '1' : '0.5';
+    cta.style.pointerEvents = url ? 'auto' : 'none';
+  }
+
+  if (wrap) {
+    if (url) {
+      wrap.innerHTML = `
+        <iframe src="${esc(url)}" title="시연 페이지" loading="lazy" referrerpolicy="no-referrer"></iframe>
+        <div class="demo-fallback" style="display:none">
+          <div>이 페이지는 임베드를 차단합니다.</div>
+          <div style="font-size:12px;opacity:0.8">"시연 페이지 열기"를 눌러 새 탭에서 확인하세요.</div>
+        </div>
+      `;
+    } else {
+      wrap.innerHTML = '<div class="demo-fallback">URL을 입력하면 시연 페이지가 여기에 표시됩니다.</div>';
+    }
+  }
+
+  scheduleSave();
+}
+
+function copyDemoUrl() {
+  const url = data.liveDemoUrl || (document.getElementById('live-demo-url-input')?.value || '');
+  if (!url) return;
+  const btn = document.getElementById('demo-url-copy-btn');
+  navigator.clipboard.writeText(url).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  });
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = '복사됨 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  }
+}
+
+function switchSubTab(idx) {
+  document.querySelectorAll('.sub-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.sub-tab-panel').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.subPanel) === idx);
+  });
+}
+
+function updateSubTabLabel(idx, value) {
+  if (!data.textResults[idx]) return;
+  data.textResults[idx].label = value;
+  const tabBtn = document.querySelector(`.sub-tab[data-sub-tab="${idx}"]`);
+  if (tabBtn) tabBtn.textContent = value || '결과 ' + String.fromCharCode(65 + idx);
+  scheduleSave();
+}
+
+function addTextResult() {
+  collectData();
+  const nextLabel = '결과 ' + String.fromCharCode(65 + data.textResults.length);
+  data.textResults.push({ label: nextLabel, content: '' });
+  renderTextResults();
+  applyEditMode();
+  switchSubTab(data.textResults.length - 1);
+  scheduleSave();
+}
+
+function removeTextResult(idx) {
+  collectData();
+  data.textResults.splice(idx, 1);
+  renderTextResults();
+  applyEditMode();
+  if (data.textResults.length) switchSubTab(0);
+  scheduleSave();
+}
+
+function updateImagePreview() {
+  const input = document.getElementById('image-url-input');
+  const display = document.getElementById('image-display');
+  const url = input ? input.value.trim() : (data.imageUrl || '');
+
+  if (url) {
+    const caption = document.getElementById('image-caption-input');
+    const capText = caption ? caption.value : (data.imageCaption || '');
+    display.innerHTML = `
+      <figure>
+        <img src="${esc(url)}" alt="결과 이미지" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>이미지를 불러올 수 없습니다</div>'" />
+        ${capText ? `<figcaption>${esc(capText)}</figcaption>` : ''}
+      </figure>
+    `;
+  } else {
+    display.innerHTML = '<div class="placeholder">이미지 URL을 입력하면 여기에 표시됩니다</div>';
+  }
+  scheduleSave();
+}
+
+function updateVideoPreview() {
+  const input = document.getElementById('video-url-input');
+  const display = document.getElementById('video-display');
+  const descInput = document.getElementById('video-desc-input');
+  const descText = document.getElementById('video-desc-text');
+  const url = input ? input.value.trim() : (data.videoUrl || '');
+  const desc = descInput ? descInput.value : (data.videoDesc || '');
+
+  if (url) {
+    const embedUrl = toEmbedUrl(url);
+    display.innerHTML = `
+      <div class="video-wrap">
+        <iframe src="${esc(embedUrl)}" title="영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    `;
+  } else {
+    display.innerHTML = '<div class="placeholder">YouTube URL을 입력하면 여기에 표시됩니다</div>';
+  }
+
+  if (descText) descText.textContent = desc;
+  scheduleSave();
+}
+
+/* =========================================================
+   Add / Remove Handlers
+========================================================= */
+function addMember() {
+  collectData();
+  data.members.push({ name: '', role: '' });
+  renderTeam();
+  applyEditMode();
+  const lastRow = document.querySelector('#team-body tr:last-child [data-member="name"]');
+  if (lastRow) lastRow.focus();
+  scheduleSave();
+}
+
+function removeMember(idx) {
+  collectData();
+  data.members.splice(idx, 1);
+  renderTeam();
+  applyEditMode();
+  scheduleSave();
+}
+
+function addFeature() {
+  collectData();
+  data.features.push({ title: '', desc: '' });
+  renderFeatures();
+  applyEditMode();
+  const lastItem = document.querySelector('#features-list li:last-child [data-feature="title"]');
+  if (lastItem) lastItem.focus();
+  scheduleSave();
+}
+
+function removeFeature(idx) {
+  collectData();
+  data.features.splice(idx, 1);
+  renderFeatures();
+  applyEditMode();
+  scheduleSave();
+}
+
+function addRevision() {
+  collectData();
+  data.revisions.push({ change: '', prompt: '', output: '' });
+  renderRevisions();
+  applyEditMode();
+  scheduleSave();
+}
+
+function removeRevision(idx) {
+  collectData();
+  data.revisions.splice(idx, 1);
+  renderRevisions();
+  applyEditMode();
+  scheduleSave();
+}
+
+/* =========================================================
+   Edit Mode
+========================================================= */
+function toggleEditMode() {
+  const isEditing = document.body.classList.toggle('editing');
+  applyEditMode();
+  if (!isEditing) {
+    saveData();
+    renderRevisions();
+  }
+}
+
+function applyEditMode() {
+  const isEditing = document.body.classList.contains('editing');
+  document.querySelectorAll('.editable').forEach(el => {
+    el.contentEditable = isEditing ? 'true' : 'false';
+  });
+}
+
+/* =========================================================
+   Copy to Clipboard
+========================================================= */
+function copyText(preId) {
+  const el = document.getElementById(preId);
+  if (!el) return;
+  const text = el.innerText;
+  const btn = el.closest('.code-block').querySelector('.copy-btn');
+
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  });
+
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = '복사됨 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  }
+}
+
+/* =========================================================
+   Tab UI
+========================================================= */
+function initTabs() {
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  function activate(tab) {
+    tabs.forEach(t => {
+      const is = t === tab;
+      t.classList.toggle('active', is);
+      t.setAttribute('aria-selected', is);
+      t.setAttribute('tabindex', is ? '0' : '-1');
+    });
+    const panelId = tab.getAttribute('aria-controls');
+    panels.forEach(p => {
+      const show = p.id === panelId;
+      p.classList.toggle('active', show);
+      p.hidden = !show;
+    });
+  }
+
+  tabs.forEach((tab, idx) => {
+    tab.addEventListener('click', () => activate(tab));
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(tab); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const next = tabs[(idx + dir + tabs.length) % tabs.length];
+        next.focus();
+        activate(next);
+      }
+    });
+  });
+}
+
+/* =========================================================
+   Diff Viewer (LCS word-level)
+========================================================= */
+function wordDiff(oldText, newText) {
+  const tokenize = (s) => s.split(/(\s+)/).filter(t => t.length > 0);
+  const a = tokenize(oldText || '');
+  const b = tokenize(newText || '');
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i=1;i<=m;i++)
+    for (let j=1;j<=n;j++)
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const ops = [];
+  let i=m, j=n;
+  while (i>0 && j>0) {
+    if (a[i-1]===b[j-1]) { ops.push({type:'eq',val:a[i-1]}); i--; j--; }
+    else if (dp[i-1][j]>=dp[i][j-1]) { ops.push({type:'del',val:a[i-1]}); i--; }
+    else { ops.push({type:'add',val:b[j-1]}); j--; }
+  }
+  while (i>0) { ops.push({type:'del',val:a[i-1]}); i--; }
+  while (j>0) { ops.push({type:'add',val:b[j-1]}); j--; }
+  ops.reverse();
+  return ops;
+}
+
+function renderDiffHtml(ops) {
+  return ops.map(op => {
+    const v = esc(op.val);
+    if (op.type==='eq') return v;
+    if (op.type==='add') return `<span class="diff-add">${v}</span>`;
+    return `<span class="diff-remove">${v}</span>`;
+  }).join('');
+}
+
+function initDiffToggles() {
+  document.querySelectorAll('.diff-toggle-btn').forEach(btn => {
+    btn.onclick = function() {
+      const target = this.dataset.target;
+      const view = this.dataset.view;
+
+      document.querySelectorAll(`.diff-toggle-btn[data-target="${target}"]`).forEach(b => {
+        b.classList.toggle('active', b === this);
+      });
+
+      if (view === 'diff') {
+        collectData();
+        const num = parseInt(target.replace('v',''), 10) - 1;
+        if (num > 0 && data.revisions[num] && data.revisions[num-1]) {
+          const ops = wordDiff(data.revisions[num-1].prompt, data.revisions[num].prompt);
+          const diffContainer = document.querySelector(`[data-view-content="diff"][data-target="${target}"]`);
+          if (diffContainer) {
+            diffContainer.innerHTML = `<div class="code-block" style="padding-right:18px"><pre style="margin:0;font-family:inherit;white-space:pre-wrap">${renderDiffHtml(ops)}</pre></div>`;
+          }
+        }
+      }
+
+      document.querySelectorAll(`[data-view-content][data-target="${target}"]`).forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-view-content') === view);
+      });
+    };
+  });
+}
+
+/* =========================================================
+   Dark Mode
+========================================================= */
+function initTheme() {
+  const html = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  const saved = localStorage.getItem('portfolio-theme');
+  if (saved) html.setAttribute('data-theme', saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) html.setAttribute('data-theme', 'dark');
+
+  btn.addEventListener('click', () => {
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('portfolio-theme', next);
+  });
+}
+
+/* =========================================================
+   Side Navigation
+========================================================= */
+function initNav() {
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('section.card[id^="section-"]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+}
+
+/* =========================================================
+   Event Delegation for Auto-Save
+========================================================= */
+function initEventListeners() {
+  document.getElementById('editToggle').addEventListener('click', toggleEditMode);
+
+  document.querySelector('main').addEventListener('input', (e) => {
+    if (e.target.classList.contains('editable')) scheduleSave();
+  });
+
+  document.querySelector('main').addEventListener('paste', (e) => {
+    if (e.target.classList.contains('editable')) {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      document.execCommand('insertText', false, text);
+    }
+  });
+}
+
+/* =========================================================
+   Initialization
+========================================================= */
+(function init() {
+  data = loadData();
+  renderAll();
+  initTheme();
+  initNav();
+  initTabs();
+  initEventListeners();
+})();
+</script>
+</body>
+</html>
