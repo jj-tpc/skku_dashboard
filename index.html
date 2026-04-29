@@ -1481,11 +1481,6 @@ function buildExportHTML(d, css) {
           <div class="version-change">${esc(r.change)}</div>
         </div>
         ${body}
-        <h4>해당 버전 결과물</h4>
-        <div class="code-block">
-          <button class="copy-btn" data-copy-target="${v}-output">복사</button>
-          <pre id="${v}-output">${esc(r.output)}</pre>
-        </div>
       </article>`;
   }).join('');
 
@@ -1926,12 +1921,6 @@ function renderRevisions() {
           <pre id="${vLabel}-prompt" class="editable" data-rev="prompt" data-placeholder="프롬프트를 입력하세요" spellcheck="false">${esc(r.prompt)}</pre>
         </div>
         `}
-
-        <h4>해당 버전 결과물</h4>
-        <div class="code-block">
-          <button class="copy-btn" onclick="copyText('${vLabel}-output')">복사</button>
-          <pre id="${vLabel}-output" class="editable" data-rev="output" data-placeholder="결과물을 입력하세요" spellcheck="false">${esc(r.output)}</pre>
-        </div>
       </article>
     `;
   }).join('');
